@@ -1,0 +1,260 @@
+<!--当前页面通过方法静态包含到index.html页面-->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <title>Title</title>
+</head>
+<body>
+
+    <table id="dg" class="easyui-datagrid" title="属性列表"
+       data-options="singleSelect:true ,method:'get',toolbar:'#tb'">
+        <thead>
+
+        <tr>
+            <th data-options="field:'id'" width="20%">属性id </th>
+            <th data-options="field:'attrName'" width="80%">属性名</th>
+        </tr>
+        </thead>
+    </table>
+    <!--通过toolbar：’#tb'“被包含到table标签中，并展示到任务栏-->
+    <div id="tb" style="padding:5px;height: auto">
+        <!--三个CRUD 按钮-->
+        <div style="margin-bottom:5px">
+        <a href="javascript:AddAttrList()" id=""  plain="true" class="easyui-linkbutton" data-options="iconCls:'icon-add'" >添加</a>
+        <a href="#"onclick="RemoveAttrInfo()"  class="easyui-linkbutton" plain="true" data-options="iconCls:'icon-remove'">删除</a>
+        <a href="#" onclick="editAttrInfo()" class="easyui-linkbutton" data-options="iconCls:'icon-remove',plain:true">编辑</a>
+        </div>
+        <br/>
+        <div>
+            <!--下拉分类有三级-->
+            <!--对一级分类的当前对象做获取id，通过id获取其二级分类数据-->
+            一级分类：
+            <select id="ctg1ForAttrList" class="easyui-combobox" style="width:100px" data-options=" valueField:'id', textField:'name', url:'getCatalog1',
+                    onSelect: function(rec){
+                        $('#ctg2ForAttrList').combobox('clear');
+                        $('#ctg2ForAttrList').combobox('reload','getCatalog2?catalog1Id='+rec.id);
+                }">
+            </select>
+            <!--对二级分类的当前对象做获取id，通过id 获取其三级分类数据-->
+            二级分类:
+            <select name="ctg2ForAttrList" id="ctg2ForAttrList" class="easyui-combobox" data-options="valueField:'id', textField:'name', url:'getCatalog2',
+                    onSelect: function(rec){
+                        $('#ctg3ForAttrList').combobox('clear');
+                        $('#ctg3ForAttrList').combobox('reload','getCatalog3?catalog2Id='+rec.id);
+                }"
+                    style="width:100px"></select>
+            <!--提供id或class给上一级分类用于查找并展示当前分类的数据-->
+            三级分类：
+            <select  name="ctg3ForAttrList" id="ctg3ForAttrList"  class="easyui-combobox" data-options="valueField:'id',textField:'name'"    style="width:100px" ></select>
+            <a href="#"  class="easyui-linkbutton" iconCls="icon-search" onclick="javascript:reloadAttrList()">刷新属性列表</a>
+        </div>
+    </div>
+        <!--弹出面板-->
+        <div id="dlg" buttons="#bb" class="easyui-dialog" title="编辑属性" data-options="iconCls:'icon-save',closed:true"  style="width:600px;height:500px;">
+            <form id="attrForm">
+                <br/>
+                <label>属性名称:</label>
+                <input  id="attrName" name="attrName" class="easyui-textbox" data-options="" style="width:100px"/>
+                <input  id="attrId" name="attrId" type="hidden"  />
+                <br/><br/>
+                <table id="dg_av" class="easyui-datagrid" title="属性值列表"></table>
+            </form>
+        </div>
+    <!--通过buttons属性绑定到面板-->
+        <div id="bb">
+            <a href="#" class="easyui-linkbutton" onclick="saveAttr()">保存</a>
+            <a href="#" class="easyui-linkbutton">关闭</a>
+        </div>
+
+
+    <script language="javascript">
+//      *  保存当前分类的属性和属性值
+        function saveAttr(){
+
+            // 获得三级分类id
+            var catalog3Id = $("#ctg3ForAttrList").combobox('getValue');
+
+            if(!catalog3Id){
+                catalog3Id = '61';
+            }
+            var attrInfo = {};
+            attrInfo["attrName"] = $("#attrName").textbox("getValue");
+            attrInfo["catalog3Id"]=catalog3Id;
+            attrRows = $("#dg_av").datagrid("getRows");
+            $(attrRows).each(function(i,row){
+                attrInfo["attrValueList["+i+"].valueName"] = row.valueName;
+            });
+
+            // 保存属性信息
+            // key=v&key=v&key=v.....
+            $.get("saveAttr",attrInfo,function (data) {
+                alert(data);
+                // 关闭对话框
+                $("#dlg").dialog("close");
+
+                // 刷新属性列表
+                $("#dg").datagrid("reload");
+            });
+
+        }
+//      *  点击增加后要弹出对话框
+        function editAttrInfo(){
+//            判断当前三级分类是否为空
+            if(!checkBeforeDialog()){
+                return ;
+            }
+
+            //初始化datagrid
+            initAttrValueDatagrid();
+            //进页面前线加载数据
+            var attrInfoRow =$("#dg").datagrid('getSelected');
+
+            if(attrInfoRow>1){
+                $.messager.alert('提示','请选中一行，不然无法删除！','warning');
+                return ;
+            }
+
+            $('#dg_av').datagrid({url:'getAttrValueList?attrId='+attrInfoRow.id});
+            $('#attrId').val(attrInfoRow.id);
+            $('#attrName').textbox('setValue',attrInfoRow.attrName);
+
+            //弹出框
+            $('#dlg').dialog("open");
+            $('#dg_av').datagrid({url:'removeAttrValueList?attrId='+attrInfoRow.id});
+        }
+
+        //        *  点击增加后要弹出提示
+        function RemoveAttrInfo(){
+
+        //            判断当前三级分类是否为空
+            if(!checkBeforeDialog()){
+                return ;
+            }
+
+
+            //删除前获取被选中行id
+            var attrInfoRow =$("#dg").datagrid('getSelected');
+
+            if(attrInfoRow!=null){
+
+                $('#dg_av').datagrid({url:'removeAttrValueList?attrId='+attrInfoRow.id});
+
+            }else{
+
+                //弹出提示
+                $.messager.alert('提示','请选中一行，不然无法删除！','warning');
+                return ;
+            }
+//            加载刷新属性列表
+            reloadAttrList();
+            //弹出提示
+            $.messager.alert('提示','删除成功!恢复不了咯！后悔吗？？哈哈！！','warning');
+        }
+
+//      *  点击增加后要弹出对话框
+        function AddAttrList(){
+
+//            判断当前三级分类是否为空
+            if(!checkBeforeDialog()){
+                return ;
+            }
+
+            $('#attrId').val("");
+            var ctg3val=$("#ctg3ForAttrList").combobox('getValue');
+            if(ctg3val==null){
+                ctg3val='61';
+
+            }
+            $('#dg').datagrid({url:'getAttrList?catalog3Id='+ctg3val});
+//            打开一个属性添加的对话框
+            $("#dlg").dialog('open');
+
+//            此初始方法未包含CRUD等方法,动态生成列属性
+            // 初始化datagrid
+            initAttrValueDatagrid();
+
+
+        }
+
+//        * 检查当前分类是否为空
+        function checkBeforeDialog(){
+            var ctg3val = $("#ctg3ForAttrList").combobox('getValue');
+            if(ctg3val==''){
+                $.messager.alert('警告','请先选择三级分类','warning');
+                return false;
+            }
+            return true;
+        }
+
+//       弹出面板增删改
+//       初始化弹出面板的数据
+        function initAttrValueDatagrid(){
+            // 设置属性值列表
+             datagrid= $('#dg_av').datagrid({
+                url:'datagrid_data.json',
+                columns:[[
+                    {field:'id',title:'编号',width:100},
+                    {field:'valueName',title:'属性值名称',width:100,
+                        editor:{type:"validatebox",options:{required:true}}
+
+                    },
+                ]],
+
+
+                toolbar: [{
+                    text:'添加',
+                    iconCls: 'icon-add',
+                    handler: function(){
+                        $('#dg_av').datagrid('appendRow',{
+                            id: '0',
+                            valueName: "新属性值",
+                        });
+                    }
+                },'-',{
+                    iconCls: 'icon-remove',
+                    handler: function(){
+//                        获得被选中的行
+                        var row = $("#dg_av").datagrid("getSelected");
+//                        获得被选中行的索引
+                        var index = $("#dg_av").datagrid("getRowIndex");
+//                        根据指定索引位置的行进行删除
+                        $("#dg_av").datagrid("deleteRow",index);
+
+
+                    }
+                },'-',{
+                    iconCls: 'icon-edit',
+                    handler: function(){alert('编辑')}
+                }],
+                onDblClickRow: function (rowIndex, rowData) {
+                    //双击开启编辑行
+                    datagrid.datagrid("beginEdit", rowIndex);
+                    //设定当失去焦点时,退出编辑状态
+                    var valueName = rowData.valueName;
+                    $("input.datagrid-editable-input").val(valueName).bind("blur",function(evt){
+                        datagrid.datagrid('endEdit',rowIndex);
+                    });
+                },
+
+            });
+
+
+        }
+//       刷新三级分类属性
+        function reloadAttrList(){
+            var catalog3Id=$("#ctg3ForAttrList").combobox('getValue');
+            if(!catalog3Id){
+                catalog3Id = '61';
+            }
+            $('#dg').datagrid({url:'getAttrList?catalog3Id='+catalog3Id});
+
+        }
+
+
+
+
+    </script>
+<!--此js方法未刷新按钮单击事件效果，会对第三级列表的当前对象做取值，并用当前对象的id到数据库查找属性-->
+</body>
+</html>

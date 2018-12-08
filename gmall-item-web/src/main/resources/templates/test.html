@@ -1,0 +1,33 @@
+<html lang="en"  xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Title</title>
+</head>
+<body>
+商品详情
+
+取值：<div th:text="${item}">我是p</div>
+<div text="${item}"></div>
+<p text="${hello}">我是p</p>
+
+判断：<div if="1==1">判断成功</div>
+<div if="！=1">判断成功</div>
+<div th:if="1==1">判断成功</div>
+<div th:if="4!=1">判断成功</div>
+<div th:text="(${num}=='10')?'是10':'不是10'">判断成功</div>
+
+<br/>
+<table border="1">
+    取session中的属性
+    <div th:text="${session.userName}"></div>
+
+
+    循环遍历：
+    <div th:each="string:${list}" th:text="${string}"></div>
+    <div th:each="string:${list}" th:text="${string}"></div>
+
+    <br/>
+    引用内嵌页：
+    <div th:include="test"></div>
+</body>
+</html>
